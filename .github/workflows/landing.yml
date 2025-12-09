@@ -1,0 +1,73 @@
+name: Deploy Next.js to Vercel
+
+# Mengatur kapan workflow ini akan dijalankan
+on:
+  # Trigger saat ada push ke branch 'main'
+  push:
+    branches:
+      - main
+  # Trigger saat ada pull request ditutup (merged) ke branch 'main'
+  pull_request:
+    branches:
+      - main
+      # Jenis aktivitas yang akan memicu workflow
+    types: [closed]
+  # Memungkinkan untuk menjalankan workflow secara manual dari tab Actions di GitHub
+  workflow_dispatch:
+
+jobs:
+  # Nama job: deploy
+  deploy:
+    # Menjalankan job pada environment virtual (Ubuntu terbaru)
+    runs-on: ubuntu-latest
+    
+    # Kondisi: Hanya dijalankan jika event pull_request dan tipe 'closed' 
+    # telah digabungkan (merged).
+    # Jika event-nya adalah 'push' atau 'workflow_dispatch', kondisi ini dilewati.
+    if: |
+      github.event_name != 'pull_request' || 
+      github.event.pull_request.merged == true
+
+    steps:
+      # Step 1: Checkout kode repo
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Menginstal Node.js
+      - name: Setup Node.js
+        # Menggunakan action setup-node untuk menginstal versi Node.js yang diinginkan
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Ganti dengan versi Node.js yang Anda gunakan
+          cache: 'npm' # Menggunakan npm sebagai package manager dan mengaktifkan caching
+
+      # Step 3: Menginstal dependencies
+      - name: Install Dependencies
+        run: npm install # Ganti dengan 'yarn install' atau 'pnpm install' jika Anda menggunakan package manager lain
+
+      # Step 4 (Opsional): Membuat build Next.js (Disarankan)
+      # Next.js build dilakukan untuk memastikan tidak ada error sebelum deploy.
+      - name: Build Project
+        run: npm run build # Ganti dengan 'yarn build' atau 'pnpm build'
+
+      # Step 5: Melakukan Deploy ke Vercel
+      - name: Deploy to Vercel
+        # Menggunakan action vercel-action untuk deployment
+        uses: amondnet/vercel-action@v25
+        with:
+          # Token Vercel dari Secrets (harus disimpan di pengaturan GitHub)
+          vercel-token: ${{ secrets.VERCEL_TOKEN }} 
+          # ID Project Vercel dari Secrets
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }} 
+          # ID Organisasi Vercel dari Secrets
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }} 
+          # Menentukan environment: 'production' untuk push/merge ke 'main'
+          vercel-args: '--prod' 
+          # Direktori root project (jika Next.js Anda tidak di root repo)
+          # root-dir: './' 
+          
+          # CATATAN: 
+          # Jika Anda menggunakan variabel environment pada proses build/runtime 
+          # di Vercel, pastikan variabel tersebut sudah terkonfigurasi di 
+          # pengaturan project Vercel Anda, atau masukkan di sini 
+          # menggunakan secrets/variabel.
